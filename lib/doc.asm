@@ -149,6 +149,21 @@ doc_insert:
 	PUSH BC
 	PUSH DE
 	PUSH HL
+	CALL doc_insert_prepare
+	OR A
+	JR NZ,doc_insert_ret
+	CALL doc_insert_desc
+doc_insert_ret:
+	OR A
+	POP HL
+	POP DE
+	POP BC
+	RET
+
+; HL = text, BC = length (> 0). Stores the text in the add store and describes it in di_desc,
+; di_len and di_nl, ready for doc_insert_desc. Doing this once and inserting many times lets
+; every insertion share one copy of the text. Returns A = error (0 = ok). Clobbers BC, DE, HL.
+doc_insert_prepare:
 	LD (di_len),BC
 	PUSH HL
 	PUSH BC
@@ -158,7 +173,7 @@ doc_insert:
 	POP HL
 	CALL add_append
 	OR A
-	JP NZ,doc_insert_ret
+	RET NZ
 	LD A,SRC_ADD
 	LD (di_desc+P_SRC),A
 	LD A,B
@@ -169,6 +184,15 @@ doc_insert:
 	LD (di_desc+P_OFF),A
 	LD HL,(di_len)
 	LD (di_desc+P_LEN),HL
+	XOR A
+	RET
+
+; IX = iterator giving the insertion point. Links the text described by doc_insert_prepare into
+; the piece table there and leaves the iterator just after it. Preserves BC, DE, HL.
+doc_insert_desc:
+	PUSH BC
+	PUSH DE
+	PUSH HL
 	LD L,(IX+IT_PIDX)
 	LD H,(IX+IT_PIDX+1)
 	LD (di_idx),HL
@@ -194,7 +218,7 @@ doc_insert:
 	LD HL,(di_idx)
 	CALL piece_split
 	OR A
-	JP NZ,doc_insert_ret
+	JP NZ,doc_insert_desc_ret
 	LD HL,(di_idx)
 	INC HL
 	LD (di_idx),HL
@@ -203,7 +227,7 @@ doc_insert_link:
 	LD DE,di_desc
 	CALL piece_insert
 	OR A
-	JP NZ,doc_insert_ret
+	JP NZ,doc_insert_desc_ret
 	LD HL,(di_idx)
 	LD (di_pos_idx),HL
 	LD HL,(di_len)
@@ -246,7 +270,7 @@ doc_insert_nl:
 	LD HL,(di_pos_idx)
 	LD DE,(di_pos_off)
 	CALL iter_seek
-doc_insert_ret:
+doc_insert_desc_ret:
 	OR A
 	POP HL
 	POP DE

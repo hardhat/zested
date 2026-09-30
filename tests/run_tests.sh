@@ -49,7 +49,7 @@ if sys.argv[2] == "core":
     check("zested_big.bin", (blk * 160))
     check("zested_bank.bin", (blk * 65) + blk[:69])
     check("zested_empty.bin", b"")
-else:
+elif sys.argv[2] == "editor":
     check("zested_ed.txt", b"one\nthree\n")
     check("zested_ed_big.bin", (blk * 160))
 print("host file checks passed")

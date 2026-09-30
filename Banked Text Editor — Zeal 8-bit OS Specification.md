@@ -1968,12 +1968,12 @@ The complete editor architecture is:
 
 ## Phase 3 — Search
 
-- [ ] Implement forward search
-- [ ] Implement backward search
-- [ ] Support searches across piece boundaries
-- [ ] Support searches across bank boundaries
-- [ ] Implement replace
-- [ ] Implement replace-all
+- [x] Implement forward search
+- [x] Implement backward search
+- [x] Support searches across piece boundaries
+- [x] Support searches across bank boundaries
+- [x] Implement replace
+- [x] Implement replace-all
 - [ ] Group Replace All into one undo operation
 
 ## Phase 4 — Undo

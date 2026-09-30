@@ -175,6 +175,7 @@ CursorLen	EQU $-Cursor
 	include "docedit.asm"
 	include "line.asm"
 	include "editor.asm"
+	include "search.asm"
 
 ; Code must stay below the bank window at 0x8000.
 code_end:
