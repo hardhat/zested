@@ -1,0 +1,17 @@
+.venv/
+venv/
+*.o
+*.lis
+*.map
+*.sym
+*.zx0
+*.zts
+*.ztp
+*.ztm
+*.bin
+__pycache__/
+*.pyc
+venv*/
+.vscode/
+prototype/prototype
+s
