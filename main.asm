@@ -15,7 +15,7 @@ Start:
 	CALL DbgMsg
 	db "Starting zested.asm", 13, 10, 0
 	CALL bank_init
-	CALL doc_init
+	CALL ed_init
 
 	; Early exit for debugging purposes
 	;LD A,0
@@ -172,3 +172,10 @@ CursorLen	EQU $-Cursor
 	include "piece.asm"
 	include "iter.asm"
 	include "doc.asm"
+	include "docedit.asm"
+	include "line.asm"
+	include "editor.asm"
+
+; Code must stay below the bank window at 0x8000.
+code_end:
+	ASSERT(code_end <= 0x8000)

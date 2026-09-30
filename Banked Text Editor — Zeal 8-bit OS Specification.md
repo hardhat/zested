@@ -1957,14 +1957,14 @@ The complete editor architecture is:
 
 ## Phase 2 — Editor operations
 
-- [ ] Implement cursor movement
-- [ ] Implement character insertion
-- [ ] Implement character deletion
-- [ ] Implement line insertion
-- [ ] Implement line deletion
-- [ ] Implement scrolling
-- [ ] Implement cursor cache
-- [ ] Implement sparse line index
+- [x] Implement cursor movement
+- [x] Implement character insertion
+- [x] Implement character deletion
+- [x] Implement line insertion
+- [x] Implement line deletion
+- [x] Implement scrolling
+- [x] Implement cursor cache
+- [x] Implement sparse line index
 
 ## Phase 3 — Search
 

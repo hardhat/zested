@@ -39,8 +39,13 @@ DEFC IT_SIZE         = 9
 DEFC PIECE_TABLE     = 0xC000
 DEFC PIECE_TABLE_END = PIECE_TABLE + PIECE_CAP * PIECE_SIZE
 
+; ---- sparse line index: one entry (piece dw, offset dw) per 16 lines, entry k = start of line 16*k ----
+DEFC LINE_INDEX_CAP  = 256
+DEFC LINE_INDEX      = PIECE_TABLE_END
+DEFC LINE_INDEX_END  = LINE_INDEX + LINE_INDEX_CAP * 4
+
 ; bank_init clears bank_type .. bank_state_end, doc_init clears vars_start .. vars_end
-DEFVARS PIECE_TABLE_END
+DEFVARS LINE_INDEX_END
 {
     bank_type       ds.b BANK_TABLE_SIZE
     bank_next       ds.b BANK_TABLE_SIZE
@@ -77,5 +82,37 @@ DEFVARS PIECE_TABLE_END
     fio_cur         ds.b 1
     fio_filled      ds.w 1
     fio_iter        ds.b IT_SIZE
+    doc_newlines    ds.w 1		; newline count == last line number (saturates at 65535)
+    li_count        ds.w 1		; valid line index entries
+    lf_line         ds.w 1
+    lf_k            ds.w 1
+    isl_avail       ds.w 1
+    dd_len          ds.w 1
+    dd_idx          ds.w 1
+    dd_prev         ds.w 1
+    dd_nl           ds.w 1
+    dc_len          ds.w 1
+    dc_count        ds.w 1
+    dc_chunk        ds.w 1
+    dc_iter         ds.b IT_SIZE
+    di_pos_idx      ds.w 1
+    di_pos_off      ds.w 1
+    di_nl           ds.w 1
+    tnt_tail        ds.w 1
+    ei_src          ds.w 1
+    ei_len          ds.w 1
+    ei_k            ds.w 1
+    ei_tail         ds.w 1
+    ei_char         ds.b 1
+    tmp_it          ds.b IT_SIZE
+    cur_it          ds.b IT_SIZE	; cursor: iterator plus line/column, kept in step by the ed_/cur_ routines
+    cur_line        ds.w 1
+    cur_col         ds.w 1
+    cur_want        ds.w 1		; column to return to when moving up/down
+    view_top        ds.w 1
+    view_left       ds.w 1
     vars_end        ds.b 1
+    view_rows       ds.b 1		; configuration: survives doc_init
+    view_cols       ds.b 1
+    vars_top        ds.b 0
 }

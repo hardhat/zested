@@ -142,16 +142,23 @@ add_append_done:
 
 ; IX = iterator giving the insertion point, HL = text, BC = length (> 0).
 ; Copies the text to the add store and links it into the piece table at the iterator position,
-; splitting a piece if needed and merging with neighbours. The iterator is invalid afterwards.
+; splitting a piece if needed and merging with neighbours. The iterator is left just after the
+; inserted text. Updates doc_newlines.
 ; Returns A = error (0 = ok), Z set on success.
 doc_insert:
 	PUSH BC
 	PUSH DE
 	PUSH HL
 	LD (di_len),BC
+	PUSH HL
+	PUSH BC
+	CALL count_nl_mem
+	LD (di_nl),DE
+	POP BC
+	POP HL
 	CALL add_append
 	OR A
-	JR NZ,doc_insert_ret
+	JP NZ,doc_insert_ret
 	LD A,SRC_ADD
 	LD (di_desc+P_SRC),A
 	LD A,B
@@ -187,7 +194,7 @@ doc_insert:
 	LD HL,(di_idx)
 	CALL piece_split
 	OR A
-	JR NZ,doc_insert_ret
+	JP NZ,doc_insert_ret
 	LD HL,(di_idx)
 	INC HL
 	LD (di_idx),HL
@@ -196,19 +203,49 @@ doc_insert_link:
 	LD DE,di_desc
 	CALL piece_insert
 	OR A
-	JR NZ,doc_insert_ret
+	JP NZ,doc_insert_ret
 	LD HL,(di_idx)
-	CALL piece_merge		; new piece + following
+	LD (di_pos_idx),HL
+	LD HL,(di_len)
+	LD (di_pos_off),HL		; cursor = (new piece, its length), i.e. just after the text
+	LD HL,(di_idx)
+	CALL piece_merge		; new piece + following: offset unchanged
 	LD HL,(di_idx)
 	LD A,H
 	OR L
 	JR Z,doc_insert_dirty
 	DEC HL
+	CALL piece_addr
+	LD DE,P_LEN
+	ADD HL,DE
+	LD E,(HL)
+	INC HL
+	LD D,(HL)			; DE = length of the previous piece
+	PUSH DE
+	LD HL,(di_idx)
+	DEC HL
 	CALL piece_merge		; previous + new piece
+	POP DE
+	JR NC,doc_insert_dirty
+	LD HL,(di_idx)
+	DEC HL
+	LD (di_pos_idx),HL
+	LD HL,(di_pos_off)
+	ADD HL,DE
+	LD (di_pos_off),HL
 doc_insert_dirty:
 	LD A,1
 	LD (doc_dirty),A
-	XOR A
+	LD HL,(doc_newlines)
+	LD DE,(di_nl)
+	ADD HL,DE
+	JR NC,doc_insert_nl
+	LD HL,0xFFFF
+doc_insert_nl:
+	LD (doc_newlines),HL
+	LD HL,(di_pos_idx)
+	LD DE,(di_pos_off)
+	CALL iter_seek
 doc_insert_ret:
 	OR A
 	POP HL
@@ -284,6 +321,7 @@ doc_load_unused:
 	CALL bank_release
 doc_load_done:
 	CALL doc_load_close
+	CALL doc_count_all
 	XOR A
 	LD (doc_dirty),A
 	JR doc_load_ret

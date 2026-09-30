@@ -32,7 +32,7 @@ if ! grep -q 'ALL TESTS PASSED' "$OUT"; then
 fi
 
 # Verify what the editor wrote to the host file system.
-python3 - "$HOSTDIR" <<'EOF' || exit 1
+python3 - "$HOSTDIR" "${2:-core}" <<'EOF' || exit 1
 import os, sys
 d = sys.argv[1]
 def check(name, expected):
@@ -44,9 +44,13 @@ def check(name, expected):
         print("host check failed: %s has %d bytes, expected %d (or wrong content)" % (name, len(data), len(expected)))
         sys.exit(1)
 blk = bytes(range(1, 252))
-check("zested_small.txt", b"12ab345")
-check("zested_big.bin", (blk * 160))
-check("zested_bank.bin", (blk * 65) + blk[:69])
-check("zested_empty.bin", b"")
+if sys.argv[2] == "core":
+    check("zested_small.txt", b"12ab345")
+    check("zested_big.bin", (blk * 160))
+    check("zested_bank.bin", (blk * 65) + blk[:69])
+    check("zested_empty.bin", b"")
+else:
+    check("zested_ed.txt", b"one\nthree\n")
+    check("zested_ed_big.bin", (blk * 160))
 print("host file checks passed")
 EOF

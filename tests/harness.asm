@@ -3,7 +3,7 @@
 ; failed checks, so zero means success. Assertion routines take an inline NUL-terminated
 ; message right after the CALL; they clobber HL and flags-dependent state as noted.
 
-DEFVARS vars_end
+DEFVARS vars_top
 {
 	t_checks	ds.w 1
 	t_fails		ds.w 1
@@ -18,6 +18,9 @@ DEFVARS vars_end
 	tv_a		ds.b 8
 	tv_ptr		ds.w 1
 	tv_base		ds.b 1
+	tv_n		ds.w 1
+	tv_fmt		ds.w 1
+	t_lbuf		ds.b 9
 	t_blk		ds.b 256
 }
 
@@ -353,6 +356,41 @@ t_finish_exit:
 	OUT (0x10),A
 t_halt:
 	JR t_halt
+
+; Fills t_blk[0..250] with 1..251. 251 is prime, so it never lines up with 256-byte pages.
+t_fill_blk:
+	LD HL,t_blk
+	LD B,251
+	LD A,1
+t_fill_blk_loop:
+	LD (HL),A
+	INC HL
+	INC A
+	DJNZ t_fill_blk_loop
+	RET
+
+; Allocates temporary banks until the OS runs out, frees them, returns A = how many.
+t_free_banks:
+	XOR A
+	LD (tv_a + 7),A
+t_free_banks_loop:
+	LD A,BANK_TEMP
+	CALL bank_alloc
+	OR A
+	JR NZ,t_free_banks_done
+	LD HL,tv_a + 7
+	INC (HL)
+	JR t_free_banks_loop
+t_free_banks_done:
+	LD A,BANK_TEMP
+	CALL bank_free_type
+	LD A,(tv_a + 7)
+	RET
+
+; BC = expected piece count; inline message.
+t_count_is:
+	LD DE,(doc_piece_count)
+	JP t_eq16
 
 t_s_fail:	DB "FAIL: ",0
 t_s_ctx:	DB " [ctx=",0

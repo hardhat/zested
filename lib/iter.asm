@@ -290,3 +290,28 @@ iter_chunk_rem:
 iter_chunk_eof:
 	SCF
 	RET
+
+; IX = iterator -> HL = bytes already consumed in the current piece (0 at EOF). Preserves DE.
+iter_offset:
+	PUSH DE
+	LD A,(IX+IT_REM)
+	OR (IX+IT_REM+1)
+	JR Z,iter_offset_zero
+	LD L,(IX+IT_PPTR)
+	LD H,(IX+IT_PPTR+1)
+	LD DE,P_LEN
+	ADD HL,DE
+	LD E,(HL)
+	INC HL
+	LD D,(HL)
+	LD L,(IX+IT_REM)
+	LD H,(IX+IT_REM+1)
+	EX DE,HL
+	OR A
+	SBC HL,DE
+	POP DE
+	RET
+iter_offset_zero:
+	LD HL,0
+	POP DE
+	RET

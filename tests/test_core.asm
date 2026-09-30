@@ -34,39 +34,10 @@ test_start:
 	include "piece.asm"
 	include "iter.asm"
 	include "doc.asm"
+	include "docedit.asm"
 	include "harness.asm"
 
 ; ---------------------------------------------------------------- helpers
-
-; Fills t_blk[0..250] with 1..251. 251 is prime, so it never lines up with 256-byte pages.
-t_fill_blk:
-	LD HL,t_blk
-	LD B,251
-	LD A,1
-t_fill_blk_loop:
-	LD (HL),A
-	INC HL
-	INC A
-	DJNZ t_fill_blk_loop
-	RET
-
-; Allocates temporary banks until the OS runs out, frees them, returns A = how many.
-t_free_banks:
-	XOR A
-	LD (tv_a + 7),A
-t_free_banks_loop:
-	LD A,BANK_TEMP
-	CALL bank_alloc
-	OR A
-	JR NZ,t_free_banks_done
-	LD HL,tv_a + 7
-	INC (HL)
-	JR t_free_banks_loop
-t_free_banks_done:
-	LD A,BANK_TEMP
-	CALL bank_free_type
-	LD A,(tv_a + 7)
-	RET
 
 ; A = bank -> A = its type.
 t_type_of:
@@ -93,11 +64,6 @@ t_bank_id:
 	POP DE
 	POP HL
 	RET
-
-; BC = expected piece count; inline message.
-t_count_is:
-	LD DE,(doc_piece_count)
-	JP t_eq16
 
 ; HL = piece index, DE = expected 6-byte descriptor; inline message.
 t_piece_is:
@@ -1378,3 +1344,7 @@ test_fileio:
 	CALL t_count_is
 	DB "failed load leaves an empty document",0
 	RET
+
+; Code must stay below the bank window at 0x8000.
+code_end:
+	ASSERT(code_end <= 0x8000)
