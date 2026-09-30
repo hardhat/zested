@@ -13,6 +13,10 @@ ed_init:
 	LD (view_rows),A
 	LD A,ED_DEFAULT_COLS
 	LD (view_cols),A
+	LD A,1
+	LD (auto_compact),A
+	LD HL,128
+	LD (cmp_waste_pages),HL
 	JR cur_reset
 
 ; Puts the cursor and the view at the start of the document.
@@ -305,7 +309,18 @@ ed_insert:
 	LD BC,(ei_len)
 	CALL doc_insert
 	OR A
+	JR Z,ed_insert_ok
+	CP ERR_NO_MORE_ENTRIES
 	JR NZ,ed_insert_ret
+	CALL doc_try_compact		; the piece table is full: compact and try once more
+	LD A,ERR_NO_MORE_ENTRIES
+	JR NZ,ed_insert_ret
+	LD HL,(ei_src)
+	LD BC,(ei_len)
+	CALL doc_insert
+	OR A
+	JR NZ,ed_insert_ret
+ed_insert_ok:
 	LD DE,(ei_k)
 	LD A,D
 	OR E
@@ -357,6 +372,16 @@ ed_delete:
 	CALL line_index_trim
 	LD BC,(ei_len)
 	CALL doc_delete
+	OR A
+	JR Z,ed_delete_ret
+	CP ERR_NO_MORE_ENTRIES
+	JR NZ,ed_delete_ret
+	CALL doc_try_compact
+	LD A,ERR_NO_MORE_ENTRIES
+	JR NZ,ed_delete_ret
+	LD BC,(ei_len)
+	CALL doc_delete
+ed_delete_ret:
 	OR A
 	POP HL
 	POP DE

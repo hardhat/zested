@@ -277,3 +277,32 @@ addr_add_fail:
 	POP HL
 	POP BC
 	RET
+
+; A = old type, B = new type. Retypes every bank of the old type. Preserves all registers.
+bank_retype:
+	PUSH AF
+	PUSH BC
+	PUSH DE
+	PUSH HL
+	LD C,A
+	LD D,B
+	LD B,BANK_TABLE_SIZE - 1
+bank_retype_loop:
+	LD E,B
+	LD H,0
+	LD L,E
+	PUSH DE
+	LD DE,bank_type
+	ADD HL,DE
+	POP DE
+	LD A,(HL)
+	CP C
+	JR NZ,bank_retype_next
+	LD (HL),D
+bank_retype_next:
+	DJNZ bank_retype_loop
+	POP HL
+	POP DE
+	POP BC
+	POP AF
+	RET

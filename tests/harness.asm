@@ -19,6 +19,9 @@ DEFVARS vars_top
 	tv_ptr		ds.w 1
 	tv_base		ds.b 1
 	tv_n		ds.w 1
+	tv_ck		ds.b 4
+	tv_ck2		ds.b 4
+	tv_save		ds.b 8
 	tv_fmt		ds.w 1
 	t_lbuf		ds.b 9
 	t_blk		ds.b 256

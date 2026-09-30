@@ -61,6 +61,12 @@ DEFC R_PIECES        = 11
 DEFC REC_HDR         = 11
 DEFC REC_OVERHEAD    = 13
 
+; ---- maintenance ----
+DEFC PIECE_SOFT      = PIECE_CAP * 3 / 4	; above this many pieces compaction is requested
+DEFC MAINT_IDLE      = 0
+DEFC MAINT_BUSY      = 1
+DEFC MAINT_DONE      = 2
+
 ; bank_init clears bank_type .. bank_state_end, doc_init clears vars_start .. vars_end
 DEFVARS LINE_INDEX_END
 {
@@ -174,11 +180,39 @@ DEFVARS LINE_INDEX_END
     dp_hi           ds.b 1
     dl_hi           ds.b 1
     ra_line         ds.w 1
+    doc_gen         ds.w 1		; bumped by every edit and by compaction: stale iterators/compactions notice
+    orig_bytes      ds.b 3		; bytes held by the original store
+    cmp_active      ds.b 1
+    cmp_gen         ds.w 1
+    cmp_it          ds.b IT_SIZE
+    cn_first        ds.b 1
+    cn_bank         ds.b 1
+    cn_page         ds.b 1
+    cn_off          ds.b 1
+    cmp_budget      ds.w 1
+    cmp_n           ds.w 1
+    cmp_src         ds.w 1
+    cf_pos          ds.b 3
+    cf_bank         ds.b 1
+    cf_next         ds.b 1
+    cf_len          ds.w 1
+    mt_live         ds.b 3
+    mt_addlive      ds.b 3
+    mt_addstore     ds.b 3
+    mt_store        ds.b 3
+    mt_waste        ds.b 3
+    mt_undo         ds.w 1
+    mt_li           ds.w 1
+    li_it           ds.b IT_SIZE
+    lis_n           ds.b 1
     vars_end        ds.b 1
     ulog_data       ds.b ULOG_SIZE
     rlog_data       ds.b ULOG_SIZE
+    cmp_buf         ds.b 256
     view_rows       ds.b 1		; configuration: survives doc_init
     view_cols       ds.b 1
+    auto_compact    ds.b 1		; compact automatically when an edit finds the piece table full
+    cmp_waste_pages ds.w 1		; doc_needs_compaction: wasted store, in 256-byte pages
     srch_len        ds.b 1		; search pattern and replacement live in ordinary RAM and survive doc_init
     srch_pat        ds.b SRCH_MAX
     repl_len        ds.b 1

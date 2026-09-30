@@ -35,6 +35,7 @@ test_start:
 	include "doc.asm"
 	include "docedit.asm"
 	include "undo.asm"
+	include "compact.asm"
 	include "line.asm"
 	include "editor.asm"
 	include "undoed.asm"
@@ -826,6 +827,8 @@ test_replace_all_check:
 	JR NZ,test_replace_all_check
 	; piece table limit
 	CALL ed_init
+	XOR A
+	LD (auto_compact),A
 	LD HL,300
 	LD (tv_ptr),HL
 test_replace_all_fill:

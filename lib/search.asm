@@ -374,7 +374,11 @@ ed_replace_body:
 	LD A,ERR_NO_SUCH_ENTRY
 	JR NZ,ed_replace_ret
 	CALL pieces_room
+	JR Z,ed_replace_go
+	CALL doc_try_compact
+	LD A,ERR_NO_MORE_ENTRIES
 	JR NZ,ed_replace_ret
+ed_replace_go:
 	LD A,(srch_len)
 	LD C,A
 	LD B,0
@@ -419,7 +423,7 @@ ed_replace_all_body:
 	LD A,(srch_len)
 	OR A
 	LD A,ERR_INVALID_PARAMETER
-	JR Z,ed_replace_all_ret
+	JP Z,ed_replace_all_ret
 	LD (li_count),HL
 	LD A,(repl_len)
 	OR A
@@ -429,7 +433,7 @@ ed_replace_all_body:
 	LD HL,repl_buf
 	CALL doc_insert_prepare
 	OR A
-	JR NZ,ed_replace_all_ret
+	JP NZ,ed_replace_all_ret
 ed_replace_all_start:
 	LD IX,cur_it
 	CALL iter_seek_end
@@ -448,7 +452,7 @@ ed_replace_all_step:
 ed_replace_all_search:
 	CALL sr_reset
 	CALL search_back
-	JR NZ,ed_replace_all_end
+	JP NZ,ed_replace_all_end
 	LD HL,(ra_line)
 	LD DE,(sr_lines)
 	OR A
@@ -456,18 +460,31 @@ ed_replace_all_search:
 	LD (ra_line),HL
 	LD (ul_line),HL
 	CALL pieces_room
-	JR NZ,ed_replace_all_fail
+	JR Z,ed_replace_all_room
+	CALL doc_try_compact		; out of pieces: compact, then carry on from the same spot
+	LD A,ERR_NO_MORE_ENTRIES
+	JP NZ,ed_replace_all_fail
+	LD A,(repl_len)			; the shared copy of the replacement was released
+	OR A
+	JR Z,ed_replace_all_room
+	LD C,A
+	LD B,0
+	LD HL,repl_buf
+	CALL doc_insert_prepare
+	OR A
+	JP NZ,ed_replace_all_fail
+ed_replace_all_room:
 	LD A,(srch_len)
 	LD C,A
 	LD B,0
 	CALL doc_delete
-	JR NZ,ed_replace_all_fail
+	JP NZ,ed_replace_all_fail
 	LD A,(repl_len)
 	OR A
 	JR Z,ed_replace_all_next
 	CALL doc_insert_desc
 	OR A
-	JR NZ,ed_replace_all_fail
+	JP NZ,ed_replace_all_fail
 	LD A,(repl_len)
 	LD B,A
 ed_replace_all_back:

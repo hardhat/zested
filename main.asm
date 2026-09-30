@@ -174,6 +174,8 @@ CursorLen	EQU $-Cursor
 	include "doc.asm"
 	include "docedit.asm"
 	include "undo.asm"
+	include "compact.asm"
+	include "metrics.asm"
 	include "line.asm"
 	include "editor.asm"
 	include "undoed.asm"

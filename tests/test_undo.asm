@@ -36,6 +36,7 @@ test_start:
 	include "doc.asm"
 	include "docedit.asm"
 	include "undo.asm"
+	include "compact.asm"
 	include "line.asm"
 	include "editor.asm"
 	include "undoed.asm"

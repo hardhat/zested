@@ -18,6 +18,7 @@ doc_init:
 ; Releases every text bank and resets the document. Preserves AF, BC, DE, HL.
 doc_close:
 	PUSH AF
+	CALL compact_abort
 	LD A,BANK_ORIGINAL
 	CALL bank_free_type
 	LD A,BANK_ADD
@@ -262,6 +263,9 @@ doc_insert_link:
 doc_insert_dirty:
 	LD A,1
 	LD (doc_dirty),A
+	LD HL,(doc_gen)
+	INC HL
+	LD (doc_gen),HL
 	LD HL,(doc_newlines)
 	LD DE,(di_nl)
 	ADD HL,DE
@@ -385,6 +389,9 @@ doc_load_commit:
 	CALL NZ,bank_link
 	LD A,B
 	LD (fio_prev),A
+	LD DE,(fio_filled)
+	LD HL,orig_bytes
+	CALL add24
 	LD HL,(fio_filled)
 	LD DE,0
 	LD A,SRC_ORIGINAL

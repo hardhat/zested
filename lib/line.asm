@@ -213,3 +213,79 @@ line_find_ret:
 	POP DE
 	POP BC
 	RET
+
+; B = most entries to add (1..255). Extends the index towards the end of the document, one
+; entry per 16 lines. Carry set once nothing more can be added.
+line_index_step:
+	PUSH BC
+	PUSH DE
+	PUSH HL
+	PUSH IX
+	LD A,B
+	LD (lis_n),A
+	LD IX,li_it
+	LD HL,(li_count)
+	LD A,H
+	OR L
+	JR NZ,line_index_step_entry
+	CALL iter_init
+	JR line_index_step_loop
+line_index_step_entry:
+	CALL li_seek_entry
+line_index_step_loop:
+	LD A,(lis_n)
+	OR A
+	JR Z,line_index_step_more
+	LD HL,(li_count)
+	INC HL; number of the entry to add
+	PUSH HL
+	LD DE,LINE_INDEX_CAP + 1
+	OR A
+	SBC HL,DE
+	POP HL
+	JR NC,line_index_step_done
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL
+	ADD HL,HL; its line number
+	LD DE,(doc_newlines)
+	EX DE,HL
+	OR A
+	SBC HL,DE
+	JR C,line_index_step_done; the document has fewer lines than that
+	LD DE,16
+	CALL it_skip_lines
+	JR C,line_index_step_done
+	LD HL,(li_count)
+	INC HL
+	LD (li_count),HL
+	CALL li_store_entry
+	LD HL,lis_n
+	DEC (HL)
+	JR line_index_step_loop
+line_index_step_more:
+	OR A
+	JR line_index_step_ret
+line_index_step_done:
+	SCF
+line_index_step_ret:
+	POP IX
+	POP HL
+	POP DE
+	POP BC
+	RET
+
+; Throws the index away, recounts the newlines and builds the whole index again.
+line_index_rebuild:
+	PUSH BC
+	PUSH HL
+	LD HL,0
+	LD (li_count),HL
+	CALL doc_count_all
+line_index_rebuild_loop:
+	LD B,64
+	CALL line_index_step
+	JR NC,line_index_rebuild_loop
+	POP HL
+	POP BC
+	RET

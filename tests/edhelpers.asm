@@ -94,3 +94,88 @@ t_doc_length_loop:
 	INC DE
 	JR t_doc_length_loop
 
+
+; HL = n (< 1000) -> t_lbuf = "Line NNN" + newline
+t_fmt_line:
+	PUSH BC
+	PUSH DE
+	PUSH HL
+	LD (tv_fmt),HL
+	LD HL,s_linepfx
+	LD DE,t_lbuf
+	LD BC,5
+	LDIR
+	LD HL,(tv_fmt)
+	LD BC,-100
+	CALL t_dig
+	LD (t_lbuf + 5),A
+	LD BC,-10
+	CALL t_dig
+	LD (t_lbuf + 6),A
+	LD A,L
+	ADD A,'0'
+	LD (t_lbuf + 7),A
+	LD A,10
+	LD (t_lbuf + 8),A
+	POP HL
+	POP DE
+	POP BC
+	RET
+t_dig:
+	LD A,'0' - 1
+t_dig_loop:
+	INC A
+	ADD HL,BC
+	JR C,t_dig_loop
+	SBC HL,BC
+	RET
+
+; HL = n: builds n lines "Line NNN" at the end of an empty document.
+t_build_lines:
+	LD (tv_n),HL
+	LD HL,0
+	LD (tv_ptr),HL
+t_build_lines_loop:
+	LD HL,(tv_ptr)
+	CALL t_fmt_line
+	LD HL,t_lbuf
+	LD BC,9
+	CALL ed_insert
+	CALL t_zero
+	DB "build line",0
+	LD HL,(tv_ptr)
+	INC HL
+	LD (tv_ptr),HL
+	LD DE,(tv_n)
+	OR A
+	SBC HL,DE
+	JR C,t_build_lines_loop
+	RET
+
+; HL = n: goes to line n and expects "Line NNN" there.
+t_goto_expect:
+	LD D,H
+	LD E,L
+; HL = line, DE = the number its text shows.
+t_goto_text:
+	LD (tv_n),HL
+	LD (tv_ptr),DE
+	LD A,L
+	LD (t_ctx),A
+	CALL cur_goto_line
+	CALL t_zero
+	DB "goto line",0
+	LD HL,(tv_ptr)
+	CALL t_fmt_line
+	LD DE,t_lbuf
+	LD BC,8
+	CALL t_at_cursor
+	DB "line text",0
+	LD BC,(tv_n)
+	CALL t_line_is
+	DB "cursor line number",0
+	LD A,0xFF
+	LD (t_ctx),A
+	RET
+
+s_linepfx:	DB "Line "

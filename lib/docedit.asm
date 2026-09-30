@@ -233,6 +233,9 @@ doc_delete_nl:
 	LD (doc_newlines),HL
 	LD A,1
 	LD (doc_dirty),A
+	LD HL,(doc_gen)
+	INC HL
+	LD (doc_gen),HL
 	CALL undo_del_end
 	XOR A
 doc_delete_ret:
@@ -241,4 +244,23 @@ doc_delete_ret:
 	POP HL
 	POP DE
 	POP BC
+	RET
+
+; HL = 24-bit variable, DE = 16-bit value: (HL) += DE. Preserves all registers.
+add24:
+	PUSH AF
+	PUSH HL
+	LD A,(HL)
+	ADD A,E
+	LD (HL),A
+	INC HL
+	LD A,(HL)
+	ADC A,D
+	LD (HL),A
+	INC HL
+	LD A,(HL)
+	ADC A,0
+	LD (HL),A
+	POP HL
+	POP AF
 	RET

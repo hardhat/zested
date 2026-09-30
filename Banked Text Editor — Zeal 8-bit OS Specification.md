@@ -1986,11 +1986,11 @@ The complete editor architecture is:
 
 ## Phase 5 — Maintenance
 
-- [ ] Implement piece-table compaction
-- [ ] Implement incremental compaction
-- [ ] Implement line-index rebuild
-- [ ] Add fragmentation metrics
-- [ ] Add automatic compaction thresholds
+- [x] Implement piece-table compaction
+- [x] Implement incremental compaction
+- [x] Implement line-index rebuild
+- [x] Add fragmentation metrics
+- [x] Add automatic compaction thresholds
 
 ## Phase 6 — Optimization
 
