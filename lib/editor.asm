@@ -109,18 +109,45 @@ cs_line_len:
 	LD BC,IT_SIZE
 	LDIR
 	LD IX,tmp_it
-	LD BC,0
+	LD HL,0
+	LD (sl_moved),HL
 cs_line_len_loop:
+	CALL iter_chunk_back
+	JR C,cs_line_len_single
+	LD (sl_n),BC
+	LD A,10
+	CPDR
+	PUSH AF
+	LD HL,(sl_n)
+	OR A
+	SBC HL,BC
+	LD B,H
+	LD C,L				; BC = bytes examined, including a hit
+	POP AF
+	JR Z,cs_line_len_hit
+	LD HL,(sl_moved)
+	ADD HL,BC
+	LD (sl_moved),HL
+	CALL iter_back
+	JR cs_line_len_loop
+cs_line_len_hit:
+	DEC BC
+	LD HL,(sl_moved)
+	ADD HL,BC
+	LD (sl_moved),HL
+	JR cs_line_len_done
+cs_line_len_single:
 	CALL iter_prev
 	JR C,cs_line_len_done
 	CP 10
 	JR Z,cs_line_len_done
-	INC BC
+	LD HL,(sl_moved)
+	INC HL
+	LD (sl_moved),HL
 	JR cs_line_len_loop
 cs_line_len_done:
 	POP IX
-	LD H,B
-	LD L,C
+	LD HL,(sl_moved)
 	POP DE
 	POP BC
 	RET
@@ -128,47 +155,25 @@ cs_line_len_done:
 ; Back to column 0.
 cs_home:
 	LD BC,(cur_col)
-cs_home_loop:
-	LD A,B
-	OR C
-	JR Z,cs_home_done
-	CALL iter_prev
-	DEC BC
-	JR cs_home_loop
-cs_home_done:
+	CALL iter_back
 	LD HL,0
 	LD (cur_col),HL
 	RET
 
 ; Forward to the end of the line (before its newline).
 cs_end:
-	CALL iter_peek
-	RET C
-	CP 10
-	RET Z
-	PUSH BC
-	LD BC,1
-	CALL iter_skip
-	POP BC
-	LD HL,(cur_col)
-	INC HL
-	LD (cur_col),HL
-	JR cs_end
+	LD BC,0xFFFF
+	JR cs_advance
 
 ; From column 0, forward up to cur_want columns without leaving the line.
 cs_to_want:
 	LD BC,(cur_want)
-cs_to_want_loop:
-	LD A,B
-	OR C
-	RET Z
-	CALL iter_peek
-	RET C
-	CP 10
-	RET Z
-	CALL cs_right
-	DEC BC
-	JR cs_to_want_loop
+cs_advance:
+	CALL iter_scan_line
+	LD DE,(cur_col)
+	ADD HL,DE
+	LD (cur_col),HL
+	RET
 
 ; ---------------------------------------------------------------- cursor movement
 ; Movement routines return carry set when the cursor could not move.

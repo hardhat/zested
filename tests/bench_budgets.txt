@@ -1,0 +1,28 @@
+# "<max t-states> <benchmark name prefix>"; about 1.5x the numbers measured when Phase 6 was done.
+# `make bench` fails when a benchmark goes over its budget.
+130000 bank_select x200 (alternating
+35000 bank_select x200 (same
+20000000 iter_next over
+33000000 iter_prev over
+1300000 doc_count_all
+10000 doc_save-style
+830000 cur_right x1000
+1340000 cur_left x1000
+180000 cur_down x50
+270000 cur_up x50
+285000 cur_home x20
+2800000 ed_insert_char x300 at the end
+23000000 200 scattered edits
+5100000 ed_insert_char x50 at the start
+570000 ed_insert_char x50 contiguous
+1100000 ed_backspace x50
+1100000 ed_undo x50
+2600000 search_fwd miss over
+3200000 search_fwd miss with
+2600000 search_back miss over
+470000 ed_find_next x20
+530000 ed_find_prev x20
+480000 line_find 299 (index built
+20000 line_find 299 (index ready
+3900000 doc_compact
+16000 doc_position x20

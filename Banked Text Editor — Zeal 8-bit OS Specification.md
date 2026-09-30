@@ -1994,14 +1994,14 @@ The complete editor architecture is:
 
 ## Phase 6 — Optimization
 
-- [ ] Profile bank switching
-- [ ] Optimize page iteration
-- [ ] Optimize cursor movement
-- [ ] Use LDIR where appropriate
-- [ ] Optimize piece insertion
-- [ ] Optimize search
-- [ ] Consider piece blocks if the fixed piece table is insufficient
-- [ ] Consider a small local gap buffer if profiling justifies it
+- [x] Profile bank switching (`make bench`: a MAP switch costs about 320 T-states, a cached `bank_select` about 110; switches happen once per chunk, so direct MMU writes were not adopted)
+- [x] Optimize page iteration (`iter_next`/`iter_peek`/`iter_skip` fast paths, `IT_LEN` in the iterator, chunked `iter_chunk`/`iter_chunk_back`)
+- [x] Optimize cursor movement (`iter_back`, `iter_scan_line`: Home/End/Up/Down use CPIR/CPDR over chunks instead of per-byte steps)
+- [x] Use LDIR where appropriate (add store, compaction and undo-log squeezing; CPIR/CPDR for newline and search scans)
+- [x] Optimize piece insertion (typing grows the previous piece in place, backspace/delete at a piece end shortens it, undo records coalesce without computing positions, undo log drops history in batches)
+- [x] Optimize search (`search_back` scans chunks with CPDR; 40 KB miss went from 27 M to 1.7 M T-states)
+- [x] Consider piece blocks if the fixed piece table is insufficient (not needed: automatic compaction keeps the fixed 512-piece table usable)
+- [x] Consider a small local gap buffer if profiling justifies it (not needed: typing is about 6 K T-states per character and independent of the piece count)
 
 ---
 

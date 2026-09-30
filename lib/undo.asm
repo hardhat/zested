@@ -171,7 +171,8 @@ log_top_rec_empty:
 	POP BC
 	RET
 
-; HL = log. Drops the oldest record (and the rest of its group). Carry set, nothing dropped, if
+; HL = log. Drops the oldest record (and the rest of its group) by moving the log base up; the
+; bytes are not moved (log_room squeezes the log once it is done). Carry set, nothing dropped, if
 ; that record belongs to lr_guard. Preserves BC, DE, HL.
 log_drop_oldest:
 	PUSH BC
@@ -184,8 +185,8 @@ log_drop_again:
 	LD E,(HL)
 	INC HL
 	LD D,(HL)
-	INC HL
 	LD (ld_base),DE
+	INC HL
 	LD E,(HL)
 	INC HL
 	LD D,(HL)
@@ -204,37 +205,18 @@ log_drop_again:
 log_drop_go:
 	LD L,(IY+R_SIZE)
 	LD H,(IY+R_SIZE+1)
-	LD (ld_size),HL
 	LD DE,(ld_base)
-	ADD HL,DE			; HL = start of the second record
-	LD DE,(ld_top)
-	EX DE,HL
-	OR A
-	SBC HL,DE			; HL = bytes to move down, DE = source
-	LD B,H
-	LD C,L
-	LD HL,(ld_base)
-	EX DE,HL			; HL = source, DE = base
-	LD A,B
-	OR C
-	JR Z,log_drop_noshift
-	LDIR
-log_drop_noshift:
-	LD HL,(ld_top)
-	LD DE,(ld_size)
-	OR A
-	SBC HL,DE
+	ADD HL,DE			; HL = start of the second record = the new base
 	EX DE,HL
 	LD HL,(ld_desc)
-	INC HL
-	INC HL
 	LD (HL),E
 	INC HL
-	LD (HL),D			; top -= size
+	LD (HL),D
+	LD (ld_base),DE
 	LD A,(ld_g)
 	OR A
 	JR Z,log_drop_done
-	LD HL,(ld_base)
+	LD HL,(ld_top)
 	OR A
 	SBC HL,DE			; empty now?
 	JR Z,log_drop_done
@@ -251,7 +233,57 @@ log_drop_ret:
 	POP BC
 	RET
 
-; HL = log, BC = bytes needed. Makes room by dropping the oldest records.
+; HL = log (lr_desc). Moves the records back to the start of the log's storage.
+log_squeeze:
+	PUSH BC
+	PUSH DE
+	PUSH HL
+	CALL log_load
+	LD HL,(lr_end)
+	LD DE,ULOG_SIZE
+	OR A
+	SBC HL,DE			; HL = start of the storage
+	LD DE,(lr_base)
+	OR A
+	SBC HL,DE
+	JR Z,log_squeeze_ret		; already there
+	ADD HL,DE
+	PUSH HL				; start of the storage
+	LD HL,(lr_top)
+	OR A
+	SBC HL,DE
+	LD B,H
+	LD C,L				; BC = bytes in use
+	POP HL
+	PUSH HL
+	PUSH BC
+	EX DE,HL			; DE = start of the storage, HL = old base
+	LD A,B
+	OR C
+	JR Z,log_squeeze_set
+	LDIR
+log_squeeze_set:
+	POP BC
+	POP DE				; DE = start of the storage
+	LD HL,(lr_desc)
+	LD (HL),E
+	INC HL
+	LD (HL),D
+	INC HL
+	EX DE,HL
+	ADD HL,BC			; new top = start + bytes in use
+	EX DE,HL
+	LD (HL),E
+	INC HL
+	LD (HL),D
+log_squeeze_ret:
+	POP HL
+	POP DE
+	POP BC
+	RET
+
+; HL = log, BC = bytes needed. Makes room by dropping the oldest records. When it has to drop
+; it frees a margin (ULOG_SIZE/8) on top, so the squeeze is not repeated for every new record.
 ; Carry set if that is impossible (bigger than the log, or it would eat lr_guard's group).
 log_room:
 	PUSH BC
@@ -259,29 +291,60 @@ log_room:
 	PUSH HL
 	LD (lr_desc),HL
 	LD (lr_need),BC
+	LD HL,0
+	LD (lr_slack),HL
+	XOR A
+	LD (lr_fin),A
 log_room_loop:
 	CALL log_load
-	LD HL,(lr_end)
-	LD DE,(lr_top)
+	LD HL,(lr_top)
+	LD DE,(lr_base)
 	OR A
-	SBC HL,DE
+	SBC HL,DE			; HL = bytes in use
 	LD DE,(lr_need)
+	ADD HL,DE
+	JR C,log_room_drop
+	LD DE,(lr_slack)
+	ADD HL,DE
+	JR C,log_room_drop
+	LD DE,ULOG_SIZE
 	OR A
 	SBC HL,DE
-	JR NC,log_room_ok
+	JR Z,log_room_ok		; exactly full
+	JR C,log_room_ok
+log_room_drop:
+	LD A,(lr_fin)
+	OR A
+	JR NZ,log_room_go
+	LD HL,ULOG_SIZE / 8
+	LD (lr_slack),HL
+log_room_go:
 	LD HL,(lr_top)
 	LD DE,(lr_base)
 	OR A
 	SBC HL,DE
-	JR Z,log_room_fail		; empty and still too small
+	JR Z,log_room_giveup		; empty and still too small
 	LD HL,(lr_desc)
 	CALL log_drop_oldest
-	JR C,log_room_fail
+	JR C,log_room_giveup
+	JR log_room_loop
+log_room_giveup:
+	LD A,(lr_fin)
+	OR A
+	JR NZ,log_room_fail
+	LD A,1
+	LD (lr_fin),A			; retry once without the margin
+	LD HL,0
+	LD (lr_slack),HL
 	JR log_room_loop
 log_room_ok:
+	LD HL,(lr_desc)
+	CALL log_squeeze
 	OR A
 	JR log_room_ret
 log_room_fail:
+	LD HL,(lr_desc)
+	CALL log_squeeze
 	SCF
 log_room_ret:
 	POP HL
@@ -388,8 +451,10 @@ doc_locate_ret:
 
 ; ---------------------------------------------------------------- recording
 
-; IX = iterator at the edit position. Notes the position for the record about to be made.
-undo_begin_edit:
+; IX = iterator at the insertion point. Decides whether the edit about to be made is recorded.
+; Unlike undo_begin_edit it does not compute the position: undo_rec_insert does that only when
+; it really has to start a record.
+undo_begin_insert:
 	XOR A
 	LD (ur_have),A
 	LD A,(undo_enabled)
@@ -401,15 +466,25 @@ undo_begin_edit:
 	LD A,(undo_overflow)
 	OR A
 	RET NZ
-	CALL doc_position
-	LD (ur_pos),HL
-	LD (ur_pos+2),A
 	LD A,1
 	LD (ur_have),A
 	RET
 
-; Records the insertion described by di_desc/di_len/di_nl (made at ur_pos). Consecutive
-; insertions that continue each other in the add store extend one record.
+; IX = iterator at the edit position. Notes the position for the record about to be made.
+undo_begin_edit:
+	CALL undo_begin_insert
+	LD A,(ur_have)
+	OR A
+	RET Z
+	CALL doc_position
+	LD (ur_pos),HL
+	LD (ur_pos+2),A
+	RET
+
+; Records the insertion described by di_desc/di_len/di_nl. IX = iterator just after the text.
+; When doc_insert_desc grew the piece before the cursor in place (di_fast) and the text continues
+; the newest record in the add store, that record is extended instead of starting a new one.
+; Otherwise the position is worked out here from the iterator.
 undo_rec_insert:
 	LD A,(ur_have)
 	OR A
@@ -419,58 +494,54 @@ undo_rec_insert:
 	PUSH HL
 	PUSH IY
 	CALL redo_clear
+	LD A,(di_fast)
+	OR A
+	JR Z,undo_rec_pos
 	LD HL,ulog_desc
 	CALL log_top_rec
-	JP C,undo_rec_new
+	JR C,undo_rec_pos
 	PUSH HL
 	POP IY
-	LD A,(iy+R_TYPE)
+	LD A,(IY+R_TYPE)
 	OR A
-	JP NZ,undo_rec_new
+	JR NZ,undo_rec_pos
 	LD A,(undo_group)
 	CP (IY+R_GROUP)
-	JP NZ,undo_rec_new
+	JR NZ,undo_rec_pos
 	LD A,(IY+R_SIZE)
 	CP REC_OVERHEAD + 6
-	JP NZ,undo_rec_new
-	LD C,(IY+R_PIECES+P_LEN)
-	LD B,(IY+R_PIECES+P_LEN+1)
-	LD L,(IY+R_POS)
-	LD H,(IY+R_POS+1)
-	ADD HL,BC
-	LD A,(IY+R_POS+2)
-	ADC A,0
-	LD B,A
-	LD DE,(ur_pos)
-	OR A
-	SBC HL,DE
-	JP NZ,undo_rec_new
-	LD A,(ur_pos+2)
-	CP B
-	JP NZ,undo_rec_new
+	JR NZ,undo_rec_pos
 	LD A,(IY+R_PIECES+P_BANK)
 	LD D,(IY+R_PIECES+P_PAGE)
 	LD E,(IY+R_PIECES+P_OFF)
 	LD L,(IY+R_PIECES+P_LEN)
 	LD H,(IY+R_PIECES+P_LEN+1)
 	CALL addr_add
-	JP C,undo_rec_new
+	JR C,undo_rec_pos
 	LD HL,di_desc+P_BANK
 	CP (HL)
-	JP NZ,undo_rec_new
+	JR NZ,undo_rec_pos
 	INC HL
 	LD A,D
 	CP (HL)
-	JP NZ,undo_rec_new
+	JR NZ,undo_rec_pos
 	INC HL
 	LD A,E
 	CP (HL)
-	JP NZ,undo_rec_new
+	JR NZ,undo_rec_pos
 	LD L,(IY+R_PIECES+P_LEN)
 	LD H,(IY+R_PIECES+P_LEN+1)
 	LD DE,(di_len)
 	ADD HL,DE
-	JP C,undo_rec_new
+	JR C,undo_rec_pos
+	LD DE,(di_pos_off)		; the text must still lie inside the piece before the cursor
+	PUSH HL
+	OR A
+	SBC HL,DE
+	POP HL
+	JR C,undo_rec_extend
+	JR NZ,undo_rec_pos
+undo_rec_extend:
 	LD (IY+R_PIECES+P_LEN),L
 	LD (IY+R_PIECES+P_LEN+1),H
 	LD L,(IY+R_NL)
@@ -482,7 +553,15 @@ undo_rec_insert:
 undo_rec_nl:
 	LD (IY+R_NL),L
 	LD (IY+R_NL+1),H
-	JR undo_rec_ret
+	JP undo_rec_ret
+undo_rec_pos:
+	CALL doc_position		; position just after the text ...
+	LD DE,(di_len)
+	OR A
+	SBC HL,DE			; ... minus its length
+	SBC A,0
+	LD (ur_pos),HL
+	LD (ur_pos+2),A
 undo_rec_new:
 	CALL undo_set_guard
 	LD HL,ulog_desc
@@ -616,6 +695,19 @@ undo_del_begin_ret:
 	POP DE
 	POP BC
 	RET
+
+; Like undo_del_begin for a range that is a single piece (dd_idx is not consulted).
+undo_del_begin_one:
+	LD A,(ur_have)
+	OR A
+	RET Z
+	PUSH BC
+	PUSH DE
+	PUSH HL
+	PUSH IY
+	LD HL,1
+	LD (ud_n),HL
+	JR undo_del_counted
 
 ; HL = descriptor of a piece that is being removed. Saves a copy in the record.
 undo_del_piece:

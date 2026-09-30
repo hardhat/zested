@@ -33,7 +33,8 @@ DEFC IT_REM          = 4           ; dw bytes left in the current piece (0 only 
 DEFC IT_BANK         = 6
 DEFC IT_PAGE         = 7
 DEFC IT_OFF          = 8
-DEFC IT_SIZE         = 9
+DEFC IT_LEN          = 9           ; dw length of the current piece (0 at EOF)
+DEFC IT_SIZE         = 11
 
 ; ---- RAM layout: everything lives in virtual page 3 ----
 DEFC PIECE_TABLE     = 0xC000
@@ -98,6 +99,9 @@ DEFVARS LINE_INDEX_END
     pm_sum          ds.w 1
     pd_desc         ds.b PIECE_SIZE
     di_idx          ds.w 1
+    dd_off          ds.w 1		; doc_delete: offset of the range inside its first piece
+    ds_desc         ds.b PIECE_SIZE	; doc_delete: descriptor of the text cut from a piece tail
+    di_fast         ds.b 1		; set when doc_insert_desc grew the previous piece in place
     di_len          ds.w 1
     di_desc         ds.b PIECE_SIZE
     fio_fd          ds.b 1
@@ -138,6 +142,10 @@ DEFVARS LINE_INDEX_END
     sr_col          ds.w 1		; forward search: column of the match if sr_lines > 0, else columns advanced
     sr_avail        ds.w 1
     sr_addr         ds.w 1
+    ib_n            ds.w 1		; iter_back: bytes still to move
+    sl_limit        ds.w 1		; iter_scan_line: bytes still allowed
+    sl_moved        ds.w 1		; iter_scan_line: bytes advanced so far
+    sl_n            ds.w 1		; iter_scan_line: size of the chunk being scanned
     ra_count        ds.w 1
     find_it         ds.b IT_SIZE
     srch_it         ds.b IT_SIZE
@@ -152,6 +160,8 @@ DEFVARS LINE_INDEX_END
     lr_guard        ds.b 1
     lr_desc         ds.w 1
     lr_need         ds.w 1
+    lr_slack        ds.w 1
+    lr_fin          ds.b 1
     lr_base         ds.w 1
     lr_top          ds.w 1
     lr_end          ds.w 1

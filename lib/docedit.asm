@@ -140,6 +140,17 @@ doc_delete:
 	LD A,H
 	OR L
 	JR Z,doc_delete_capture
+	LD (dd_off),HL
+	LD DE,(dd_len)
+	ADD HL,DE
+	JR C,doc_delete_split
+	LD E,(IX+IT_LEN)
+	LD D,(IX+IT_LEN+1)
+	OR A
+	SBC HL,DE
+	JP Z,doc_delete_tail		; the range is exactly the end of this piece
+doc_delete_split:
+	LD HL,(dd_off)
 	EX DE,HL
 	LD HL,(dd_idx)
 	CALL piece_split		; the range now starts at a piece boundary
@@ -221,6 +232,35 @@ doc_delete_after:
 doc_delete_here:
 	LD HL,(dd_idx)
 	LD DE,0
+	JR doc_delete_seek
+; The range is the tail of one piece (backspace over typed text): shorten the piece, no shifting.
+doc_delete_tail:
+	LD L,(IX+IT_PPTR)
+	LD H,(IX+IT_PPTR+1)
+	PUSH HL
+	POP IY
+	LD A,(IY+P_SRC)
+	LD (ds_desc+P_SRC),A
+	LD A,(IY+P_BANK)
+	LD D,(IY+P_PAGE)
+	LD E,(IY+P_OFF)
+	LD HL,(dd_off)
+	CALL addr_add
+	LD (ds_desc+P_BANK),A
+	LD A,D
+	LD (ds_desc+P_PAGE),A
+	LD A,E
+	LD (ds_desc+P_OFF),A
+	LD HL,(dd_len)
+	LD (ds_desc+P_LEN),HL
+	CALL undo_del_begin_one
+	LD HL,ds_desc
+	CALL undo_del_piece
+	LD HL,(dd_off)
+	LD (IY+P_LEN),L
+	LD (IY+P_LEN+1),H
+	LD HL,(dd_idx)
+	LD DE,(dd_off)
 doc_delete_seek:
 	CALL iter_seek
 	LD HL,(doc_newlines)

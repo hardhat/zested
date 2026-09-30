@@ -195,20 +195,17 @@ doc_insert_desc:
 	PUSH BC
 	PUSH DE
 	PUSH HL
-	CALL undo_begin_edit
+	CALL undo_begin_insert
+	XOR A
+	LD (di_fast),A
 	LD L,(IX+IT_PIDX)
 	LD H,(IX+IT_PIDX+1)
 	LD (di_idx),HL
 	LD A,(IX+IT_REM)
 	OR (IX+IT_REM+1)
-	JR Z,doc_insert_link		; EOF: append
-	LD L,(IX+IT_PPTR)
-	LD H,(IX+IT_PPTR+1)
-	LD DE,P_LEN
-	ADD HL,DE
-	LD E,(HL)
-	INC HL
-	LD D,(HL)			; DE = piece length
+	JR Z,doc_insert_bound		; EOF: append
+	LD E,(IX+IT_LEN)
+	LD D,(IX+IT_LEN+1)		; DE = piece length
 	LD L,(IX+IT_REM)
 	LD H,(IX+IT_REM+1)
 	EX DE,HL
@@ -216,7 +213,7 @@ doc_insert_desc:
 	SBC HL,DE			; HL = offset inside the piece
 	LD A,H
 	OR L
-	JR Z,doc_insert_link		; piece boundary: insert before
+	JR Z,doc_insert_bound		; piece boundary
 	EX DE,HL			; DE = offset
 	LD HL,(di_idx)
 	CALL piece_split
@@ -225,6 +222,57 @@ doc_insert_desc:
 	LD HL,(di_idx)
 	INC HL
 	LD (di_idx),HL
+	JR doc_insert_link
+; At a piece boundary: if the piece before continues exactly where the new text starts in the
+; add store (typing), it is simply made longer. No table shifting, no merge.
+doc_insert_bound:
+	LD HL,(di_idx)
+	LD A,H
+	OR L
+	JR Z,doc_insert_link
+	DEC HL
+	CALL piece_addr
+	LD A,(HL)
+	CP SRC_ADD
+	JR NZ,doc_insert_link
+	PUSH IY
+	PUSH HL
+	POP IY
+	LD A,(IY+P_BANK)
+	LD D,(IY+P_PAGE)
+	LD E,(IY+P_OFF)
+	LD L,(IY+P_LEN)
+	LD H,(IY+P_LEN+1)
+	CALL addr_add
+	JR C,doc_insert_no_grow
+	LD HL,di_desc+P_BANK
+	CP (HL)
+	JR NZ,doc_insert_no_grow
+	INC HL
+	LD A,D
+	CP (HL)
+	JR NZ,doc_insert_no_grow
+	INC HL
+	LD A,E
+	CP (HL)
+	JR NZ,doc_insert_no_grow
+	LD L,(IY+P_LEN)
+	LD H,(IY+P_LEN+1)
+	LD DE,(di_len)
+	ADD HL,DE
+	JR C,doc_insert_no_grow
+	LD (IY+P_LEN),L
+	LD (IY+P_LEN+1),H
+	LD (di_pos_off),HL		; cursor = end of the grown piece
+	LD HL,(di_idx)
+	DEC HL
+	LD (di_pos_idx),HL
+	LD A,1
+	LD (di_fast),A
+	POP IY
+	JR doc_insert_dirty
+doc_insert_no_grow:
+	POP IY
 doc_insert_link:
 	LD HL,(di_idx)
 	LD DE,di_desc

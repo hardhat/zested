@@ -201,6 +201,31 @@ search_back:
 	PUSH DE
 	PUSH HL
 search_back_loop:
+	CALL iter_chunk_back
+	JR C,search_back_single
+	LD (sr_avail),BC
+	LD A,(srch_pat)
+	CPDR				; look for the first byte inside the mapped chunk, backwards
+	PUSH AF
+	INC HL				; HL = lowest address examined
+	PUSH HL
+	LD HL,(sr_avail)
+	OR A
+	SBC HL,BC
+	LD B,H
+	LD C,L				; BC = bytes examined, including a hit
+	POP HL
+	PUSH BC
+	CALL count_nl_mem		; DE = newlines crossed (clobbers BC, HL)
+	LD HL,(sr_lines)
+	ADD HL,DE
+	LD (sr_lines),HL
+	POP BC
+	CALL iter_back
+	POP AF
+	JR NZ,search_back_loop
+	JR search_back_cand
+search_back_single:
 	CALL iter_prev
 	JR C,search_back_none
 	CP 10
@@ -213,6 +238,7 @@ search_back_test:
 	LD HL,srch_pat
 	CP (HL)
 	JR NZ,search_back_loop
+search_back_cand:
 	CALL search_match_here
 	JR NZ,search_back_loop
 	XOR A
