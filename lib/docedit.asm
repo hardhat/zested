@@ -130,6 +130,7 @@ doc_delete:
 	OR (IX+IT_REM+1)
 	JP Z,doc_delete_ret		; at EOF: nothing to delete
 	LD (dd_len),BC
+	CALL undo_begin_edit
 	CALL doc_count_range
 	LD (dd_nl),DE
 	LD L,(IX+IT_PIDX)
@@ -138,7 +139,7 @@ doc_delete:
 	CALL iter_offset		; HL = offset inside the first piece
 	LD A,H
 	OR L
-	JR Z,doc_delete_loop
+	JR Z,doc_delete_capture
 	EX DE,HL
 	LD HL,(dd_idx)
 	CALL piece_split		; the range now starts at a piece boundary
@@ -147,6 +148,8 @@ doc_delete:
 	LD HL,(dd_idx)
 	INC HL
 	LD (dd_idx),HL
+doc_delete_capture:
+	CALL undo_del_begin
 doc_delete_loop:
 	LD BC,(dd_len)
 	LD A,B
@@ -159,6 +162,7 @@ doc_delete_loop:
 	JR NC,doc_delete_after		; ran off the end of the document
 	LD HL,(dd_idx)
 	CALL piece_addr
+	CALL undo_del_piece
 	PUSH HL
 	POP IY
 	LD E,(IY+P_LEN)
@@ -175,6 +179,7 @@ doc_delete_loop:
 	JR doc_delete_loop
 doc_delete_partial:
 	LD HL,(dd_len)			; drop the first `remaining` bytes of this piece
+	CALL undo_del_fix_len
 	LD A,(IY+P_BANK)
 	LD D,(IY+P_PAGE)
 	LD E,(IY+P_OFF)
@@ -228,6 +233,7 @@ doc_delete_nl:
 	LD (doc_newlines),HL
 	LD A,1
 	LD (doc_dirty),A
+	CALL undo_del_end
 	XOR A
 doc_delete_ret:
 	OR A

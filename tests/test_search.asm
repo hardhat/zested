@@ -34,8 +34,10 @@ test_start:
 	include "iter.asm"
 	include "doc.asm"
 	include "docedit.asm"
+	include "undo.asm"
 	include "line.asm"
 	include "editor.asm"
+	include "undoed.asm"
 	include "search.asm"
 	include "harness.asm"
 	include "edhelpers.asm"
@@ -52,48 +54,6 @@ t_rep:
 	CALL replace_set
 	JP t_zero
 
-; BC = expected line, then column in the following t_col_is; convenience for both at once.
-; Expects the cursor at line BC / column DE (inline message shared by both checks).
-t_cursor_is:
-	POP HL
-	LD (t_msg),HL
-	CALL t_skip
-	LD (t_ret),HL
-	LD HL,(cur_line)
-	OR A
-	SBC HL,BC
-	JR NZ,t_cursor_bad
-	LD HL,(cur_col)
-	OR A
-	SBC HL,DE
-	JR NZ,t_cursor_bad
-	CALL t_count
-	LD HL,(t_ret)
-	PUSH HL
-	RET
-t_cursor_bad:
-	CALL t_count
-	LD HL,(t_msg)
-	CALL t_failhdr
-	LD HL,t_s_got
-	CALL DbgStr
-	LD HL,(cur_line)
-	CALL DbgHL
-	LD A,','
-	CALL DbgSerial
-	LD HL,(cur_col)
-	CALL DbgHL
-	LD HL,t_s_exp
-	CALL DbgStr
-	CALL DbgBC
-	LD A,','
-	CALL DbgSerial
-	CALL DbgDE
-	CALL t_nl
-	LD HL,(t_ret)
-	PUSH HL
-	RET
-
 ; A = expected error code: the last search must have failed with it. Inline message.
 t_not_found:
 	LD B,ERR_NO_SUCH_ENTRY
@@ -103,16 +63,6 @@ t_not_found:
 t_repl_count:
 	LD DE,(tv_n)
 	JP t_eq16
-
-; IX = t_iter, counts the bytes of the whole document into DE.
-t_doc_length:
-	CALL iter_init
-	LD DE,0
-t_doc_length_loop:
-	CALL iter_next
-	RET C
-	INC DE
-	JR t_doc_length_loop
 
 s_doc1:		DB "one two three two one"
 s_two:		DB "two"

@@ -35,8 +35,10 @@ test_start:
 	include "iter.asm"
 	include "doc.asm"
 	include "docedit.asm"
+	include "undo.asm"
 	include "line.asm"
 	include "editor.asm"
+	include "undoed.asm"
 	include "harness.asm"
 	include "edhelpers.asm"
 

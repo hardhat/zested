@@ -9,6 +9,7 @@ doc_init:
 	LD BC,vars_end - vars_start - 1
 	LD (HL),0
 	LDIR
+	CALL undo_reset
 	POP HL
 	POP DE
 	POP BC
@@ -193,6 +194,7 @@ doc_insert_desc:
 	PUSH BC
 	PUSH DE
 	PUSH HL
+	CALL undo_begin_edit
 	LD L,(IX+IT_PIDX)
 	LD H,(IX+IT_PIDX+1)
 	LD (di_idx),HL
@@ -270,6 +272,8 @@ doc_insert_nl:
 	LD HL,(di_pos_idx)
 	LD DE,(di_pos_off)
 	CALL iter_seek
+	CALL undo_rec_insert
+	XOR A
 doc_insert_desc_ret:
 	OR A
 	POP HL

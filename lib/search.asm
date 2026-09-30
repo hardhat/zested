@@ -320,6 +320,18 @@ ed_find_prev:
 
 ; ---------------------------------------------------------------- replace
 
+; A = a byte the replace-all scan just stepped back over: keeps ra_line, the line of the
+; scan position, in step. Preserves BC, DE, HL.
+ra_note_char:
+	CP 10
+	RET NZ
+	PUSH HL
+	LD HL,(ra_line)
+	DEC HL
+	LD (ra_line),HL
+	POP HL
+	RET
+
 ; A replacement can add up to three pieces (split, split, insert). Returns A = 0 if the table has
 ; room for that, otherwise ERR_NO_MORE_ENTRIES, so a replacement is never left half done.
 pieces_room:
@@ -341,6 +353,14 @@ pieces_room_ret:
 ; Replaces the match under the cursor with the replacement text; the cursor ends after it.
 ; Returns A = error (ERR_NO_SUCH_ENTRY if the cursor is not on a match), Z on success.
 ed_replace:
+	CALL undo_begin_group
+	CALL ed_replace_body
+	PUSH AF
+	CALL undo_end_group
+	POP AF
+	RET
+
+ed_replace_body:
 	PUSH IX
 	PUSH BC
 	PUSH DE
@@ -379,7 +399,18 @@ ed_replace_ret:
 ; matches keep their positions. Matches never overlap and replaced text is not searched again.
 ; The replacement text is stored once and every replacement points at that copy.
 ; Returns A = error (0 = ok), HL = number of replacements made. The cursor goes to the start.
+; The whole operation is one undo step.
 ed_replace_all:
+	CALL undo_begin_group
+	CALL ed_replace_all_body
+	PUSH AF
+	PUSH HL
+	CALL undo_end_group
+	POP HL
+	POP AF
+	RET
+
+ed_replace_all_body:
 	PUSH IX
 	PUSH BC
 	PUSH DE
@@ -402,6 +433,8 @@ ed_replace_all:
 ed_replace_all_start:
 	LD IX,cur_it
 	CALL iter_seek_end
+	LD HL,(doc_newlines)
+	LD (ra_line),HL
 ed_replace_all_loop:
 	LD A,(srch_len)			; a match must end at or before the current position
 	DEC A
@@ -410,10 +443,18 @@ ed_replace_all_loop:
 ed_replace_all_step:
 	CALL iter_prev
 	JR C,ed_replace_all_end
+	CALL ra_note_char
 	DJNZ ed_replace_all_step
 ed_replace_all_search:
+	CALL sr_reset
 	CALL search_back
 	JR NZ,ed_replace_all_end
+	LD HL,(ra_line)
+	LD DE,(sr_lines)
+	OR A
+	SBC HL,DE
+	LD (ra_line),HL
+	LD (ul_line),HL
 	CALL pieces_room
 	JR NZ,ed_replace_all_fail
 	LD A,(srch_len)
@@ -431,6 +472,7 @@ ed_replace_all_search:
 	LD B,A
 ed_replace_all_back:
 	CALL iter_prev			; back to where the replaced text starts
+	CALL ra_note_char
 	DJNZ ed_replace_all_back
 ed_replace_all_next:
 	LD HL,(ra_count)

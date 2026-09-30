@@ -27,6 +27,8 @@ cur_reset:
 	LD (cur_want),HL
 	LD (view_top),HL
 	LD (view_left),HL
+	LD A,1
+	LD (undo_enabled),A
 	RET
 
 ; BC = path. Replaces the current document with the file. Returns A = error (0 = ok).
@@ -297,6 +299,7 @@ ed_insert:
 	LD (ei_k),DE
 	LD (ei_tail),HL
 	LD HL,(cur_line)
+	LD (ul_line),HL
 	CALL line_index_trim
 	LD HL,(ei_src)
 	LD BC,(ei_len)
@@ -350,6 +353,7 @@ ed_delete:
 	LD IX,cur_it
 	LD (ei_len),BC
 	LD HL,(cur_line)
+	LD (ul_line),HL
 	CALL line_index_trim
 	LD BC,(ei_len)
 	CALL doc_delete
@@ -385,6 +389,14 @@ ed_backspace_start:
 ; HL = text (may be empty, BC = 0). Inserts a new line above the cursor line; the cursor stays
 ; on the line it was on, which is now one line further down.
 ed_insert_line:
+	CALL undo_begin_group
+	CALL ed_insert_line_body
+	PUSH AF
+	CALL undo_end_group
+	POP AF
+	RET
+
+ed_insert_line_body:
 	PUSH BC
 	PUSH HL
 	CALL cur_home

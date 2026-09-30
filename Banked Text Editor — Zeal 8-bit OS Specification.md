@@ -1974,15 +1974,15 @@ The complete editor architecture is:
 - [x] Support searches across bank boundaries
 - [x] Implement replace
 - [x] Implement replace-all
-- [ ] Group Replace All into one undo operation
+- [x] Group Replace All into one undo operation
 
 ## Phase 4 — Undo
 
-- [ ] Implement undo records
-- [ ] Implement undo stack
-- [ ] Implement redo stack
-- [ ] Implement grouped operations
-- [ ] Ensure deleted text can be restored without copying
+- [x] Implement undo records
+- [x] Implement undo stack
+- [x] Implement redo stack
+- [x] Implement grouped operations
+- [x] Ensure deleted text can be restored without copying
 
 ## Phase 5 — Maintenance
 

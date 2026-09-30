@@ -173,8 +173,10 @@ CursorLen	EQU $-Cursor
 	include "iter.asm"
 	include "doc.asm"
 	include "docedit.asm"
+	include "undo.asm"
 	include "line.asm"
 	include "editor.asm"
+	include "undoed.asm"
 	include "search.asm"
 
 ; Code must stay below the bank window at 0x8000.

@@ -45,6 +45,22 @@ DEFC LINE_INDEX      = PIECE_TABLE_END
 DEFC LINE_INDEX_END  = LINE_INDEX + LINE_INDEX_CAP * 4
 DEFC SRCH_MAX        = 64
 
+; ---- undo: two logs (undo, redo) of variable-length records, newest at the top ----
+; Record: size dw, type, group, pos (3 bytes), line dw, newlines dw, then n piece descriptors,
+; then size dw again so the top record can be found from the end of the log.
+DEFC ULOG_SIZE       = 2048
+DEFC UT_INSERT       = 0
+DEFC UT_DELETE       = 1
+DEFC R_SIZE          = 0
+DEFC R_TYPE          = 2
+DEFC R_GROUP         = 3
+DEFC R_POS           = 4
+DEFC R_LINE          = 7
+DEFC R_NL            = 9
+DEFC R_PIECES        = 11
+DEFC REC_HDR         = 11
+DEFC REC_OVERHEAD    = 13
+
 ; bank_init clears bank_type .. bank_state_end, doc_init clears vars_start .. vars_end
 DEFVARS LINE_INDEX_END
 {
@@ -119,7 +135,48 @@ DEFVARS LINE_INDEX_END
     ra_count        ds.w 1
     find_it         ds.b IT_SIZE
     srch_it         ds.b IT_SIZE
+    ulog_desc       ds.b 6		; base, top, end of the undo log
+    rlog_desc       ds.b 6		; same for the redo log
+    undo_enabled    ds.b 1
+    undo_busy       ds.b 1		; set while undo/redo replays records
+    undo_depth      ds.b 1
+    undo_group      ds.b 1
+    undo_gen        ds.b 1
+    undo_overflow   ds.b 1		; the open group outgrew the log: it is not recorded
+    lr_guard        ds.b 1
+    lr_desc         ds.w 1
+    lr_need         ds.w 1
+    lr_base         ds.w 1
+    lr_top          ds.w 1
+    lr_end          ds.w 1
+    ld_desc         ds.w 1
+    ld_base         ds.w 1
+    ld_top          ds.w 1
+    ld_size         ds.w 1
+    ld_g            ds.b 1
+    ul_line         ds.w 1		; line of the edit position, set by the caller before an edit
+    ur_pos          ds.b 3
+    ur_have         ds.b 1
+    ud_ptr          ds.w 1
+    ud_start        ds.w 1
+    ud_n            ds.w 1
+    ua_src          ds.w 1
+    ua_dst          ds.w 1
+    ua_rec          ds.w 1
+    ua_group        ds.b 1
+    ua_dir          ds.b 1
+    ua_mode         ds.b 1
+    ua_lost         ds.b 1
+    ua_n            ds.w 1
+    ua_len          ds.w 1
+    ua_p            ds.w 1
+    ua_i            ds.w 1
+    dp_hi           ds.b 1
+    dl_hi           ds.b 1
+    ra_line         ds.w 1
     vars_end        ds.b 1
+    ulog_data       ds.b ULOG_SIZE
+    rlog_data       ds.b ULOG_SIZE
     view_rows       ds.b 1		; configuration: survives doc_init
     view_cols       ds.b 1
     srch_len        ds.b 1		; search pattern and replacement live in ordinary RAM and survive doc_init
